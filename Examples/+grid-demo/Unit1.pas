@@ -72,6 +72,7 @@ type
     GroupBox6: TGroupBox;
     Button6: TButton;
     ProgressBar1: TProgressBar;
+    Button7: TButton;
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure DropTarget1Dropped(Sender: TObject; const [Ref] Data: TDragObject;
@@ -85,6 +86,7 @@ type
     procedure DoPresentationNameChoosing(Sender: TObject; var PresenterName: string);
     procedure Button1Click(Sender: TObject);
     procedure Button6Click(Sender: TObject);
+    procedure Button7Click(Sender: TObject);
   private
     procedure OpenSource(var fmt_ctx: PAVFormatContext; FileName: string);
     procedure JoinMedia(SourceFiles : TArray<string>; TargetFile: string; OnFinish: TProc; OnProgress: TProc<int64>; OnError: TProc<string>);
@@ -612,6 +614,15 @@ begin
 end;
 
 procedure TForm1.JoinMedia(SourceFiles : TArray<string>; TargetFile: string; OnFinish: TProc; OnProgress: TProc<int64>; OnError: TProc<string>);
+type
+  POffsetHelper = ^TOffsetHelper;
+  TOffsetHelper = record
+    offset_dts  : int64;
+    offset_pts  : int64;
+    last_pts    : int64;
+    last_dts    : int64;
+  end;
+
 function PPtrIdx(P: PPAVStream; I: Integer): PAVStream;
 begin
   Inc(P, I);
@@ -625,9 +636,8 @@ var
   in_stream       : PAVStream;
   out_stream      : PAVStream;
   pkt             : TAVPacket;
-  offset_dts      : int64;
-  offset_pts      : int64;
-  new_chunk       : boolean;
+  v_new_chunk       : boolean;
+  a_new_chunk       : boolean;
 begin
   ofmt := nil;
   ifmt_ctx := nil;
@@ -660,18 +670,61 @@ begin
           if in_stream.codec.codec_type = AVMEDIA_TYPE_VIDEO then
           begin
             out_stream := nil;
+            // create new stream
             out_stream := avformat_new_stream(ofmt_ctx, in_stream.codec.codec);
+            // copy strema offset helper
+            out_stream.priv_data := av_malloc(SizeOF(TOffsetHelper));
+            POffsetHelper(out_stream.priv_data).offset_dts := 0;
+            POffsetHelper(out_stream.priv_data).offset_pts := 0;
+            POffsetHelper(out_stream.priv_data).last_pts := 0;
+            POffsetHelper(out_stream.priv_data).last_dts := 0;
+            // --
             if not Assigned(out_stream) then
               raise Exception.Create('Failed allocating output stream');
-
+            // copy codec context
             if avcodec_copy_context(out_stream.codec, in_stream.codec) < 0 then
               raise Exception.Create('Failed to copy context from input to output stream codec context');
-
+            // copy codec extradata
+            if ((in_stream.codec.extradata_size > 0) and assigned(in_stream.codec.extradata)) then
+            begin
+              //out_stream.codec.extradata := AllocMem(in_stream.codec.extradata_size);
+              //out_stream.codec.extradata_size := in_stream.codec.extradata_size;
+              //move(in_stream.codec.extradata^, out_stream.codec.extradata^, in_stream.codec.extradata_size);
+            end;
+            out_stream.codec.codec_tag := 0;
+            if (ofmt_ctx.oformat.flags and AVFMT_GLOBALHEADER) <> 0 then
+              out_stream.codec.flags := out_stream.codec.flags or CODEC_FLAG_GLOBAL_HEADER;
+          end else
+          if in_stream.codec.codec_type = AVMEDIA_TYPE_AUDIO then
+          begin
+            out_stream := nil;
+            // create new stream
+            out_stream := avformat_new_stream(ofmt_ctx, in_stream.codec.codec);
+            // copy strema offset helper
+            out_stream.priv_data := av_malloc(SizeOF(TOffsetHelper));
+            POffsetHelper(out_stream.priv_data).offset_dts := 0;
+            POffsetHelper(out_stream.priv_data).offset_pts := 0;
+            POffsetHelper(out_stream.priv_data).last_pts := 0;
+            POffsetHelper(out_stream.priv_data).last_dts := 0;
+            // --
+            if not Assigned(out_stream) then
+              raise Exception.Create('Failed allocating output stream');
+            // copy codec context
+            if avcodec_copy_context(out_stream.codec, in_stream.codec) < 0 then
+              raise Exception.Create('Failed to copy context from input to output stream codec context');
+            // copy codec extradata
+            if ((in_stream.codec.extradata_size > 0) and assigned(in_stream.codec.extradata)) then
+            begin
+              //out_stream.codec.extradata := AllocMem(in_stream.codec.extradata_size);
+              //out_stream.codec.extradata_size := in_stream.codec.extradata_size;
+              //move(in_stream.codec.extradata^, out_stream.codec.extradata^, in_stream.codec.extradata_size);
+            end;
             out_stream.codec.codec_tag := 0;
             if (ofmt_ctx.oformat.flags and AVFMT_GLOBALHEADER) <> 0 then
               out_stream.codec.flags := out_stream.codec.flags or CODEC_FLAG_GLOBAL_HEADER;
           end;
       end;
+
       av_dump_format(ofmt_ctx, 0, PAnsiChar(ansistring(TargetFile)), 1);
 
       if (ofmt.flags and AVFMT_NOFILE) = 0 then
@@ -687,42 +740,65 @@ begin
         begin
           OpenSource(ifmt_ctx, SourceFiles[i]);
 
-          new_chunk := true;
-
+          v_new_chunk := true;
+          a_new_chunk := true;
           while av_read_frame(ifmt_ctx, @pkt) >= 0 do
           begin
             in_stream := nil;
             out_stream := nil;
             in_stream  := PPtrIdx(ifmt_ctx.streams, pkt.stream_index);
+            out_stream := PPtrIdx(ofmt_ctx.streams, pkt.stream_index);
             //log_packet(ifmt_ctx, @pkt, 'in');
 
             (* copy video packet *)
             if in_stream.codec.codec_type = AVMEDIA_TYPE_VIDEO then
             begin
-              out_stream := PPtrIdx(ofmt_ctx.streams, pkt.stream_index);
-              if new_chunk then
+              if v_new_chunk then
               begin
-                offset_dts := out_stream.cur_dts;
-                offset_pts := av_stream_get_end_pts(out_stream);
-                if offset_pts = AV_NOPTS_VALUE then offset_pts := 0;
-                if offset_dts = AV_NOPTS_VALUE then offset_dts := 0;
-                offset_dts := av_rescale_q_rnd(offset_dts, out_stream.time_base, in_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
-                offset_pts := av_rescale_q_rnd(offset_pts, out_stream.time_base, in_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
-                offset_dts := offset_dts + pkt.duration;
-                offset_pts := offset_pts + pkt.duration;
-                new_chunk := false;
+                POffsetHelper(out_stream.priv_data).offset_dts := out_stream.cur_dts;
+                POffsetHelper(out_stream.priv_data).offset_pts := av_stream_get_end_pts(out_stream);
+                if POffsetHelper(out_stream.priv_data).offset_pts = AV_NOPTS_VALUE then POffsetHelper(out_stream.priv_data).offset_pts := 0;
+                if POffsetHelper(out_stream.priv_data).offset_dts = AV_NOPTS_VALUE then POffsetHelper(out_stream.priv_data).offset_dts := 0;
+                POffsetHelper(out_stream.priv_data).offset_dts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_dts, out_stream.time_base, in_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+                POffsetHelper(out_stream.priv_data).offset_pts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_pts, out_stream.time_base, in_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+                POffsetHelper(out_stream.priv_data).offset_dts := POffsetHelper(out_stream.priv_data).offset_dts + pkt.duration;
+                POffsetHelper(out_stream.priv_data).offset_pts := POffsetHelper(out_stream.priv_data).offset_pts + pkt.duration;
+                v_new_chunk := false;
               end;
-              pkt.dts := av_rescale_q_rnd(offset_dts + pkt.dts, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
-              pkt.pts := av_rescale_q_rnd(offset_pts + pkt.pts, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+              pkt.dts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_dts + pkt.dts, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+              pkt.pts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_pts + pkt.pts, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
               pkt.duration := av_rescale_q_rnd(pkt.duration, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
               pkt.pos := -1;
               //log_packet(ofmt_ctx, @pkt, 'out');
 
               if av_interleaved_write_frame(ofmt_ctx, @pkt) < 0 then
-                raise Exception.Create('Error muxing packet');
+                raise Exception.Create('Error muxing video packet');
 
               if assigned(OnProgress) then
                 OnProgress(out_stream.nb_frames);
+            end else
+            if in_stream.codec.codec_type = AVMEDIA_TYPE_AUDIO then
+            begin
+              if a_new_chunk then
+              begin
+                POffsetHelper(out_stream.priv_data).offset_dts := out_stream.cur_dts;
+                POffsetHelper(out_stream.priv_data).offset_pts := av_stream_get_end_pts(out_stream);
+                if POffsetHelper(out_stream.priv_data).offset_pts = AV_NOPTS_VALUE then POffsetHelper(out_stream.priv_data).offset_pts := 0;
+                if POffsetHelper(out_stream.priv_data).offset_dts = AV_NOPTS_VALUE then POffsetHelper(out_stream.priv_data).offset_dts := 0;
+                POffsetHelper(out_stream.priv_data).offset_dts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_dts, out_stream.time_base, in_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+                POffsetHelper(out_stream.priv_data).offset_pts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_pts, out_stream.time_base, in_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+                POffsetHelper(out_stream.priv_data).offset_dts := POffsetHelper(out_stream.priv_data).offset_dts + pkt.duration;
+                POffsetHelper(out_stream.priv_data).offset_pts := POffsetHelper(out_stream.priv_data).offset_pts + pkt.duration;
+                a_new_chunk := false;
+              end;
+              pkt.dts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_dts + pkt.dts, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+              pkt.pts := av_rescale_q_rnd(POffsetHelper(out_stream.priv_data).offset_pts + pkt.pts, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+              pkt.duration := av_rescale_q_rnd(pkt.duration, in_stream.time_base, out_stream.time_base, integer(AV_ROUND_NEAR_INF) or integer(AV_ROUND_PASS_MINMAX));
+              pkt.pos := -1;
+              //log_packet(ofmt_ctx, @pkt, 'out');
+
+              if av_interleaved_write_frame(ofmt_ctx, @pkt) < 0 then
+                raise Exception.Create('Error muxing audio packet');
             end;
             av_free_packet(@pkt);
           end;
@@ -1127,6 +1203,65 @@ begin
   LTargetFile := edit5.Text +'\'+ System.IOUtils.TPath.GetFileNameWithoutExtension(edit4.Text) +'_out.mp4';
   debugMemo.Lines.Add(LTargetFile);
   debugMemo.Lines.Add(string.Join(';', LFileChunks));
+
+  TThread.CreateAnonymousThread(
+    procedure
+    begin
+      JoinMedia(LFileChunks,
+          LTargetFile,
+          procedure()
+          begin
+            TThread.Synchronize(nil, procedure
+            begin
+              DropTarget1.Enabled := true;
+              Form1.ProgressBar1.Value := 0;
+              Form1.Edit4.Text := '';
+              Form1.Edit5.Text := '';
+              ListBox2.Clear;
+              showmessage('FINISH');
+            end);
+          end,
+          procedure(AProgress : int64)
+          begin
+            TThread.Synchronize(nil, procedure
+            begin
+              ProgressBar1.Value := min(AProgress, ProgressBar1.Max);
+            end);
+          end,
+          procedure(AMessage: string)
+          begin
+            TThread.Synchronize(nil, procedure
+            begin
+              showmessage(Format('ERROR: %s',[AMessage]));
+            end);
+          end
+      );
+    end).Start;
+end;
+
+procedure TForm1.Button7Click(Sender: TObject);
+var
+  i, j          : integer;
+  LTaskItem     : TListBoxItem;
+  LChunkName    : string;
+  allTaskFinish : boolean;
+  LFileChunks   : TArray<string>;
+  LTargetFile   : string;
+begin
+  SetLength(LFileChunks, Listbox2.Items.Count);
+  for I := 0 to Listbox2.Items.Count - 1 do
+  begin
+    LTaskItem := Listbox2.ItemByIndex(i);
+    LChunkName := format('%s_%d', [System.IOUtils.TPath.GetFileNameWithoutExtension(edit4.Text), i, System.IOUtils.TPath.GetExtension(edit4.Text)]);
+    LFileChunks[i] := edit5.Text +'\'+ LChunkName + '.mp4';
+  end;
+
+  Button6.Enabled := false;
+  ProgressBar1.Max := FSourceNbFrames;
+  LTargetFile := edit5.Text +'\'+ System.IOUtils.TPath.GetFileNameWithoutExtension(edit4.Text) +'_out.mp4';
+  debugMemo.Lines.Add(LTargetFile);
+  debugMemo.Lines.Add(string.Join(';', LFileChunks));
+
 
   TThread.CreateAnonymousThread(
     procedure

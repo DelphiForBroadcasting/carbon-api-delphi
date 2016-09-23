@@ -34,14 +34,14 @@ object Form1: TForm1
     Size.Height = 583.000000000000000000
     Size.PlatformDefault = False
     TabHeight = 50.000000000000000000
-    TabIndex = 0
+    TabIndex = 1
     TabOrder = 0
     TabPosition = Top
     object TabItem1: TTabItem
       CustomIcon = <
         item
         end>
-      IsSelected = True
+      IsSelected = False
       Size.Width = 84.000000000000000000
       Size.Height = 50.000000000000000000
       Size.PlatformDefault = False
@@ -52,8 +52,8 @@ object Form1: TForm1
       ExplicitSize.cy = 26.000000000000000000
       object ListBox1: TListBox
         Align = Client
-        Size.Width = 950.000000000000000000
-        Size.Height = 523.000000000000000000
+        Size.Width = 50.000000000000000000
+        Size.Height = 40.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 2
         DisableFocusEffect = True
@@ -61,10 +61,10 @@ object Form1: TForm1
         DefaultItemStyles.GroupHeaderStyle = ''
         DefaultItemStyles.GroupFooterStyle = ''
         ShowCheckboxes = True
-        Viewport.Width = 946.000000000000000000
-        Viewport.Height = 479.000000000000000000
+        Viewport.Width = 46.000000000000000000
+        Viewport.Height = 0.000000000000000000
         object ListBoxHeader1: TListBoxHeader
-          Size.Width = 946.000000000000000000
+          Size.Width = 46.000000000000000000
           Size.Height = 40.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 0
@@ -99,7 +99,7 @@ object Form1: TForm1
       end
       object Layout1: TLayout
         Align = Top
-        Size.Width = 950.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 10.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 8
@@ -109,7 +109,7 @@ object Form1: TForm1
       CustomIcon = <
         item
         end>
-      IsSelected = False
+      IsSelected = True
       Size.Width = 73.000000000000000000
       Size.Height = 50.000000000000000000
       Size.PlatformDefault = False
@@ -147,9 +147,9 @@ object Form1: TForm1
           Touch.InteractiveGestures = [LongTap, DoubleTap]
           Anchors = [akLeft, akTop, akRight]
           TabOrder = 2
-          Position.X = 254.000000000000000000
+          Position.X = 256.000000000000000000
           Position.Y = 32.000000000000000000
-          Size.Width = 664.000000000000000000
+          Size.Width = 660.000000000000000000
           Size.Height = 22.000000000000000000
           Size.PlatformDefault = False
         end
@@ -173,9 +173,9 @@ object Form1: TForm1
           Touch.InteractiveGestures = [LongTap, DoubleTap]
           Anchors = [akLeft, akTop, akRight]
           TabOrder = 1
-          Position.X = 254.000000000000000000
+          Position.X = 256.000000000000000000
           Position.Y = 64.000000000000000000
-          Size.Width = 664.000000000000000000
+          Size.Width = 660.000000000000000000
           Size.Height = 22.000000000000000000
           Size.PlatformDefault = False
         end
@@ -260,6 +260,13 @@ object Form1: TForm1
           Size.Width = 906.000000000000000000
           Size.Height = 20.000000000000000000
           Size.PlatformDefault = False
+        end
+        object Button7: TButton
+          Position.X = 712.000000000000000000
+          Position.Y = 64.000000000000000000
+          TabOrder = 1
+          Text = 'Button7'
+          OnClick = Button7Click
         end
       end
     end

@@ -306,15 +306,15 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libavutil\avutil.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libavcodec\avcodec.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libavformat\avformat.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libavfilter\avfilter.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libswresample\swresample.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libpostproc\postprocess.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libavdevice\avdevice.pas"/>
-        <DCCReference Include="..\..\..\svn\ffmpeg\trunk\ffmpeg-20140810-git-e18d9d9\libswscale\swscale.pas"/>
-        <DCCReference Include="..\..\..\svn\uses\trunk\verysimplexml-2.0.1\Source\Xml.VerySimple.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libavutil\avutil.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libavcodec\avcodec.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libavformat\avformat.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libavfilter\avfilter.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libswresample\swresample.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libpostproc\postprocess.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libavdevice\avdevice.pas"/>
+        <DCCReference Include="..\..\..\ffmpeg-delphi\Include\libswscale\swscale.pas"/>
+        <DCCReference Include="..\..\..\..\svn\uses\trunk\verysimplexml-2.0.1\Source\Xml.VerySimple.pas"/>
         <DCCReference Include="..\..\Include\FH.CARBONAPI.pas"/>
         <DCCReference Include="..\..\Include\FH.CARBONAPI.PROFILE.pas"/>
         <DCCReference Include="Unit1.pas">
